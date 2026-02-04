@@ -1,0 +1,166 @@
+name: ColdTrack CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test Python Code
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        flake8 device/ cloud/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 device/ cloud/ --count --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ -v --cov=device --cov=cloud --cov-report=xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  lambda-package:
+    name: Package Lambda Functions
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Package Lambda - Data Processor
+      run: |
+        cd cloud/lambda/data_processor
+        pip install -r requirements.txt -t .
+        zip -r lambda_data_processor.zip .
+    
+    - name: Upload Lambda artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: lambda-functions
+        path: cloud/lambda/*/lambda_*.zip
+
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Test docker-compose configuration
+      run: |
+        docker-compose -f config/docker-compose.yml config
+    
+    - name: Build InfluxDB & Grafana stack
+      run: |
+        docker-compose -f config/docker-compose.yml build
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [test, lambda-package]
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-2
+    
+    - name: Download Lambda artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: lambda-functions
+    
+    - name: Deploy Lambda to Dev
+      run: |
+        aws lambda update-function-code \
+          --function-name ColdTrack-Process-Dev \
+          --zip-file fileb://lambda_data_processor.zip
+    
+    - name: Run smoke tests
+      run: |
+        # Add smoke test commands here
+        echo "Running smoke tests..."
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, lambda-package]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-2
+    
+    - name: Download Lambda artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: lambda-functions
+    
+    - name: Deploy Lambda to Production
+      run: |
+        aws lambda update-function-code \
+          --function-name ColdTrack-Process \
+          --zip-file fileb://lambda_data_processor.zip
+    
+    - name: Run integration tests
+      run: |
+        # Add integration test commands here
+        echo "Running integration tests..."
+    
+    - name: Create GitHub release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        draft: false
+        prerelease: false

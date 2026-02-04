@@ -1,0 +1,17 @@
+{
+  "device_id": "CT-001",
+  "mqtt_endpoint": "REPLACE_WITH_YOUR_IOT_ENDPOINT",
+  "topic_prefix": "coldtrack/sensors",
+  "publish_interval": 60,
+  "temp_range": [2.0, 8.0],
+  "temp_variation": 2.0,
+  "humidity_range": [50.0, 70.0],
+  "humidity_variation": 10.0,
+  "battery_initial": 100.0,
+  "battery_drain_rate": 0.001,
+  "certificates": {
+    "root_ca": "../../certificates/AmazonRootCA1.pem",
+    "device_cert": "../../certificates/device.crt",
+    "private_key": "../../certificates/private.key"
+  }
+}

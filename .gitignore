@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# AWS Credentials & Certificates
+*.pem
+*.crt
+*.key
+*.p12
+credentials
+.aws/
+
+# Environment Variables
+.env
+.env.local
+.env.production
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Docker
+docker-compose.override.yml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Lambda Deployment Packages
+*.zip
+lambda_package/
+
+# InfluxDB Data
+influxdb-data/
+
+# Grafana Data
+grafana-data/
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Certificates (keep templates, ignore actual certs)
+certificates/*.crt
+certificates/*.key
+certificates/*.pem
+!certificates/.gitkeep
+
+# Config (keep examples, ignore actual configs)
+config/*.env
+!config/.env.example
+!config/docker-compose.yml
